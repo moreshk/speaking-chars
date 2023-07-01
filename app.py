@@ -1,3 +1,4 @@
+import glob
 import openai
 import os
 import requests
@@ -56,22 +57,59 @@ def transcribe_audio(filename: str) -> str:
     return transcript.text
 
 
+# def generate_reply(conversation: list) -> str:
+#     """Generate a ChatGPT response.
+
+#     :param conversation: A list of previous user and assistant messages.
+#     :returns: The ChatGPT response.
+#     :rtype: str
+
+#     """
+#     print("Conversation:", conversation)
+    
+#     response = openai.ChatCompletion.create(
+#       model="gpt-3.5-turbo",
+#       messages=[
+#             {"role": "system", "content": "Your role is a pirate character called Jollybeard from a story book. Your objective is to be an entertaining companion to a 6 year old kid. You should respond to messages in a funny manner and your responses should include a lot of pirate slang such as matey, rrrrrrs, arrrrggghhh etc. Your responses should be short and witty and not exceed more than one or two sentences each time."},
+#         ] + conversation,
+#         temperature=1
+#     )
+#     return response["choices"][0]["message"]["content"]
+
+def limit_conversation_history(conversation: list, limit: int = 20) -> list:
+    """Limit the size of conversation history.
+
+    :param conversation: A list of previous user and assistant messages.
+    :param limit: Number of latest messages to retain. Default is 3.
+    :returns: The limited conversation history.
+    :rtype: list
+    """
+    return conversation[-limit:]
+
 def generate_reply(conversation: list) -> str:
     """Generate a ChatGPT response.
 
     :param conversation: A list of previous user and assistant messages.
     :returns: The ChatGPT response.
     :rtype: str
-
     """
+    print("Original conversation length:", len(conversation))
+    print("Original Conversation", conversation)
+    # Limit conversation history
+    conversation = limit_conversation_history(conversation)
+    
+    print("Limited conversation length:", len(conversation))
+    print("New Conversation", conversation)
+    
     response = openai.ChatCompletion.create(
       model="gpt-3.5-turbo",
       messages=[
-            {"role": "system", "content": "Your role is a pirate character called Jollybeard from a story book. Your objective is to be an entertaining companion to a 6 year old kid. You should respond to messages in a funny manner and your responses should include a lot of pirate slang such as matey, rrrrrrs, arrrrggghhh etc."},
-        ] + conversation
-    #    temperature = 2
+            {"role": "system", "content": "Your role is a pirate character called Jollybeard from a story book. Your objective is to be an entertaining companion to a 6 year old kid. You should respond to messages in a funny manner and your responses should include a lot of pirate slang such as matey, rrrrrrs, arrrrggghhh etc. Your responses should be short and witty and not exceed more than one or two sentences each time."},
+        ] + conversation,
+        temperature=1
     )
     return response["choices"][0]["message"]["content"]
+
 
 
 def generate_audio(text: str, output_path: str = "") -> str:
@@ -90,7 +128,7 @@ def generate_audio(text: str, output_path: str = "") -> str:
         voice_id = next(filter(lambda v: v["name"] == ELEVENLABS_VOICE_NAME, voices))["voice_id"]
     except StopIteration:
         voice_id = voices[0]["voice_id"]
-        voice_id = "NSSWSeFYw8mzpjV33EKh"
+        voice_id = "jIBWwhRngkm8so6GFCYC"
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
     headers = {
         "xi-api-key": ELEVENLABS_API_KEY,
@@ -126,11 +164,31 @@ def transcribe():
     os.makedirs(os.path.dirname(recording_path), exist_ok=True)
     file.save(recording_path)
     transcription = transcribe_audio(recording_path)
+        # Delete the .wav file after it is transcribed
+    try:
+        os.remove(recording_path)
+    except OSError as e:
+        print(f"Error: {recording_path} : {e.strerror}")
     return jsonify({'text': transcription})
+
+def clean_output_dir(directory: str):
+    """Deletes all .mp3 files from a given directory.
+
+    :param directory: The directory path to clean.
+    """
+    files = glob.glob(f'{directory}/*.mp3')
+    for file in files:
+        try:
+            os.remove(file)
+        except OSError as e:
+            print(f"Error: {file} : {e.strerror}")
 
 
 @app.route('/ask', methods=['POST'])
 def ask():
+    # Clean the outputs directory before generating a new response
+    clean_output_dir("outputs")
+    
     """Generate a ChatGPT response from the given conversation, then convert it to audio using ElevenLabs."""
     conversation = request.get_json(force=True).get("conversation", "")
     reply = generate_reply(conversation)
@@ -138,6 +196,8 @@ def ask():
     reply_path = f"outputs/{reply_file}"
     os.makedirs(os.path.dirname(reply_path), exist_ok=True)
     generate_audio(reply, output_path=reply_path)
+
+
     return jsonify({'text': reply, 'audio': f"/listen/{reply_file}"})
 
 
