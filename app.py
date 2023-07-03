@@ -8,16 +8,12 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-
 # Get OpenAI API key from environment variable
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Get ElevenLabs API key from environment variable
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
-
 openai.api_key = OPENAI_API_KEY
-
-
 
 ELEVENLABS_VOICE_STABILITY = 0.30
 ELEVENLABS_VOICE_SIMILARITY = 0.75
@@ -28,13 +24,10 @@ ELEVENLABS_ALL_VOICES = []
 
 app = Flask(__name__)
 
-
 def get_voices() -> list:
     """Fetch the list of available ElevenLabs voices.
-
     :returns: A list of voice JSON dictionaries.
     :rtype: list
-
     """
     url = "https://api.elevenlabs.io/v1/voices"
     headers = {
@@ -46,35 +39,14 @@ def get_voices() -> list:
 
 def transcribe_audio(filename: str) -> str:
     """Transcribe audio to text.
-
     :param filename: The path to an audio file.
     :returns: The transcribed text of the file.
     :rtype: str
-
     """
     with open(filename, "rb") as audio_file:
         transcript = openai.Audio.transcribe("whisper-1", audio_file)
     return transcript.text
 
-
-# def generate_reply(conversation: list) -> str:
-#     """Generate a ChatGPT response.
-
-#     :param conversation: A list of previous user and assistant messages.
-#     :returns: The ChatGPT response.
-#     :rtype: str
-
-#     """
-#     print("Conversation:", conversation)
-    
-#     response = openai.ChatCompletion.create(
-#       model="gpt-3.5-turbo",
-#       messages=[
-#             {"role": "system", "content": "Your role is a pirate character called Jollybeard from a story book. Your objective is to be an entertaining companion to a 6 year old kid. You should respond to messages in a funny manner and your responses should include a lot of pirate slang such as matey, rrrrrrs, arrrrggghhh etc. Your responses should be short and witty and not exceed more than one or two sentences each time."},
-#         ] + conversation,
-#         temperature=1
-#     )
-#     return response["choices"][0]["message"]["content"]
 
 def limit_conversation_history(conversation: list, limit: int = 20) -> list:
     """Limit the size of conversation history.
@@ -88,7 +60,6 @@ def limit_conversation_history(conversation: list, limit: int = 20) -> list:
 
 def generate_reply(conversation: list) -> str:
     """Generate a ChatGPT response.
-
     :param conversation: A list of previous user and assistant messages.
     :returns: The ChatGPT response.
     :rtype: str
@@ -104,6 +75,7 @@ def generate_reply(conversation: list) -> str:
     response = openai.ChatCompletion.create(
       model="gpt-3.5-turbo",
       messages=[
+            # {"role": "system", "content": "You are a Hindi tutor whose role is to help a kid learn Hindi. Your objective is to engage the kid in a conversation that helps him or her learn Hindi. You can do this by asking questions like what is a house called in Hindi? and see if the child responds correctly. If they do you congratulate and encourage them, if they do not tell the correct answer and be encouraging regardless. Help the kid in coming up with correct pronunciations and come up with any other new ways to help the kid learn Hindi. Continue to engage the kid in a conversation and help him learn new words in Hindi in this manner."},
             {"role": "system", "content": "Your role is a pirate character called Jollybeard from a story book. Your objective is to be an entertaining companion to a 6 year old kid. You should respond to messages in a funny manner and your responses should include a lot of pirate slang such as matey, rrrrrrs, arrrrggghhh etc. Your responses should be short and witty and not exceed more than one or two sentences each time."},
         ] + conversation,
         temperature=1
@@ -114,14 +86,12 @@ def generate_reply(conversation: list) -> str:
 
 def generate_audio(text: str, output_path: str = "") -> str:
     """Converts
-
     :param text: The text to convert to audio.
     :type text : str
     :param output_path: The location to save the finished mp3 file.
     :type output_path: str
     :returns: The output path for the successfully saved file.
     :rtype: str
-
     """
     voices = ELEVENLABS_ALL_VOICES
     try:
@@ -129,6 +99,8 @@ def generate_audio(text: str, output_path: str = "") -> str:
     except StopIteration:
         voice_id = voices[0]["voice_id"]
         voice_id = "jIBWwhRngkm8so6GFCYC"
+        # voice_id = "wW6Wydk4CWSgIsxSzHGq"
+
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
     headers = {
         "xi-api-key": ELEVENLABS_API_KEY,
@@ -173,7 +145,6 @@ def transcribe():
 
 def clean_output_dir(directory: str):
     """Deletes all .mp3 files from a given directory.
-
     :param directory: The directory path to clean.
     """
     files = glob.glob(f'{directory}/*.mp3')
