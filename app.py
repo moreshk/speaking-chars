@@ -154,6 +154,38 @@ def clean_output_dir(directory: str):
         except OSError as e:
             print(f"Error: {file} : {e.strerror}")
 
+@app.route('/conversation', methods=['POST'])
+def conversation():
+    """Generate a response from the given audio, then convert it to audio using ElevenLabs."""
+    if 'file' not in request.files:
+        return 'No file found', 400
+    file = request.files['file']
+    recording_file = f"{uuid.uuid4()}.wav"
+    recording_path = f"uploads/{recording_file}"
+    os.makedirs(os.path.dirname(recording_path), exist_ok=True)
+    file.save(recording_path)
+    # Transcribe the audio to text
+    transcription = transcribe_audio(recording_path)
+    # Delete the .wav file after it is transcribed
+    try:
+        os.remove(recording_path)
+    except OSError as e:
+        print(f"Error: {recording_path} : {e.strerror}")
+        
+    # Generate a response from the transcription
+    conversation = [
+        {"role": "user", "content": transcription}
+    ]
+    reply = generate_reply(conversation)
+
+    # Convert the response to audio
+    reply_file = f"{uuid.uuid4()}.mp3"
+    reply_path = f"outputs/{reply_file}"
+    os.makedirs(os.path.dirname(reply_path), exist_ok=True)
+    generate_audio(reply, output_path=reply_path)
+
+    return jsonify({'text': reply, 'audio': f"/listen/{reply_file}"})
+
 
 @app.route('/ask', methods=['POST'])
 def ask():
